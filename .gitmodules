@@ -1,0 +1,4 @@
+[submodule "fresco"]
+	path = fresco
+	url = git@github.com:grandcat/fresco.git
+	branch = protocol_evaluation
