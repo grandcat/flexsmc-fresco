@@ -1,0 +1,73 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>flexsmc-smc-connector</groupId>
+	<artifactId>flexsmc-fresco</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+	<name>FlexSMC-FRESCO</name>
+	<description>FRESCO SMC connector for FlexSMC</description>
+	<properties>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+	</properties>
+	<build>
+		<sourceDirectory>src/main/java</sourceDirectory>
+		<plugins>
+			<plugin>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.5.1</version>
+				<configuration>
+					<encoding>UTF-8</encoding>
+					<source>1.8</source>
+					<target>1.8</target>
+				</configuration>
+
+			</plugin>
+		</plugins>
+	</build>
+
+	<repositories>
+		<repository>
+			<id>mvn-local-repo</id>
+			<url>file://${project.basedir}/src/main/resources</url>
+		</repository>
+	</repositories>
+
+	<dependencies>
+		<!-- FRESCO from local repository "mvn-local-repo" -->
+		<dependency>
+			<groupId>fresco</groupId>
+			<artifactId>fresco</artifactId>
+			<version>0.2-SNAPSHOT</version>
+		</dependency>
+
+		<!-- gRPC server + protobuf -->
+		<dependency>
+			<groupId>io.grpc</groupId>
+			<artifactId>grpc-netty</artifactId>
+			<version>1.0.1</version>
+		</dependency>
+		<dependency>
+			<groupId>io.grpc</groupId>
+			<artifactId>grpc-protobuf</artifactId>
+			<version>1.0.1</version>
+		</dependency>
+		<dependency>
+			<groupId>io.grpc</groupId>
+			<artifactId>grpc-stub</artifactId>
+			<version>1.0.1</version>
+		</dependency>
+		<dependency>
+			<groupId>io.grpc</groupId>
+			<artifactId>grpc-context</artifactId>
+			<version>1.0.1</version>
+		</dependency>
+		<!-- Utils for UNIX socket -->
+		<dependency>
+			<groupId>io.grpc</groupId>
+			<artifactId>grpc-benchmarks</artifactId>
+			<version>1.0.1</version>
+		</dependency>
+
+	</dependencies>
+
+</project>
