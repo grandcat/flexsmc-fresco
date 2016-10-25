@@ -13,7 +13,7 @@ import org.apache.commons.cli.ParseException;
 import de.tum.flexsmc.smc.rpc.RPCServer;
 
 public final class CLIMain {
-	private static final Logger logger = Logger.getLogger(RPCServer.class.getName());
+	private static final Logger logger = Logger.getLogger(CLIMain.class.getName());
 
 	private CommandLine cmd;
 

@@ -11,7 +11,6 @@ import de.tum.flexsmc.smc.aggregator.AggregatorApplication;
 import de.tum.flexsmc.smc.aggregator.Sum;
 import de.tum.flexsmc.smc.config.BgwSuite;
 import de.tum.flexsmc.smc.rpc.PreparePhase;
-import de.tum.flexsmc.smc.rpc.RPCServer;
 import de.tum.flexsmc.smc.utils.Env;
 import dk.alexandra.fresco.framework.Party;
 import dk.alexandra.fresco.framework.ProtocolEvaluator;
@@ -34,7 +33,7 @@ import dk.alexandra.fresco.framework.value.OInt;
  *
  */
 public class BgwEngine {
-	private static final Logger l = Logger.getLogger(RPCServer.class.getName());
+	private static final Logger l = Logger.getLogger(BgwEngine.class.getName());
 
 	private SCEConfiguration sceConf;
 	private ProtocolSuiteConfiguration suiteConf;

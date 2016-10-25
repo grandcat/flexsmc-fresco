@@ -3,12 +3,11 @@ package de.tum.flexsmc.smc.config;
 import java.math.BigInteger;
 import java.util.logging.Logger;
 
-import de.tum.flexsmc.smc.rpc.RPCServer;
 import dk.alexandra.fresco.framework.sce.configuration.SCEConfiguration;
 import dk.alexandra.fresco.suite.bgw.configuration.BgwConfiguration;
 
 public class BgwSuite implements BgwConfiguration {
-	private static final Logger logger = Logger.getLogger(RPCServer.class.getName());
+	private static final Logger logger = Logger.getLogger(BgwSuite.class.getName());
 	private static BigInteger DEFAULT_MODULUS = new BigInteger("618970019642690137449562111");
 
 	private int threshold;
