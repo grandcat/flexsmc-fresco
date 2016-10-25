@@ -47,8 +47,12 @@ message SMCTask {
 
 message PreparePhase {
     message Participant {
-        string identity = 1;
-        string addr     = 2;
+        // Fixed authentication (certificate) based identity
+        string authID = 1;
+        // Temporary identity for the current SMC round
+        int32 roundID   = 2;
+        // Address and port of the service (address:port)
+        string endpoint = 3;
     }
     repeated Participant participants = 1;
     SMCTask smcTask                   = 2;

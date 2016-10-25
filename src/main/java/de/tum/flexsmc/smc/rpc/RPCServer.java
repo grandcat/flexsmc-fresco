@@ -3,11 +3,9 @@ package de.tum.flexsmc.smc.rpc;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.logging.Logger;
 
-import de.tum.flexsmc.smc.rpc.CmdResult.Status;
-import de.tum.flexsmc.smc.rpc.PreparePhase.Participant;
+import de.tum.flexsmc.smc.engine.BgwEngine;
 import de.tum.flexsmc.smc.rpc.SMCGrpc.SMCImplBase;
 import io.grpc.Server;
 import io.grpc.ServerInterceptors;
@@ -90,7 +88,7 @@ public class RPCServer {
 
 	private class SMCImpl extends SMCImplBase {
 		private final CmdResult errorInvalidSession = CmdResult.newBuilder().setMsg("Session ID not allowed")
-				.setStatus(Status.DENIED)
+				.setStatus(CmdResult.Status.DENIED)
 				.build();
 
 		private HashMap<String, Object> sessions;
@@ -109,13 +107,13 @@ public class RPCServer {
 				return;
 			}
 			String sessionID = req.getSessionID();
-			sessions.put(sessionID, new Object());
+			sessions.put(sessionID, new BgwEngine());
 			// Prepare Fresco
 			// ...
 
 			// Reply to callee
 			CmdResult reply = CmdResult.newBuilder().setMsg("[" + sessionID + "] init done.")
-					.setStatus(Status.SUCCESS).build();
+					.setStatus(CmdResult.Status.SUCCESS).build();
 			responseObserver.onNext(reply);
 			responseObserver.onCompleted();
 		}
@@ -125,19 +123,25 @@ public class RPCServer {
 			// Extract current session from ID
 			String sessionID = SessionInterceptor.SESSION_ID.get();
 			logger.info("Current session: " + sessionID);
-
-			StringBuilder sb = new StringBuilder();
-			for (Iterator<?> i = req.getParticipantsList().iterator(); i.hasNext();) {
-				Participant p = (Participant) i.next();
-				sb.append(p.getAddr());
-				sb.append(';');
+			// Fetch associated engine
+			BgwEngine eng = (BgwEngine) sessions.get(sessionID);
+			if (eng == null) {
+				responseObserver.onNext(errorInvalidSession);
+				responseObserver.onCompleted();
+				return;
 			}
 
-			logger.info("doPrepare called: " + sb.toString());
+			try {
+				eng.initializeConfig(req.getParticipantsList());
+				eng.prepareSCE();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 
 			// Reply
 			CmdResult reply = CmdResult.newBuilder().setMsg("[" + sessionID + "] doPrepare done.")
-					.setStatus(Status.SUCCESS).build();
+					.setStatus(CmdResult.Status.SUCCESS).build();
 			responseObserver.onNext(reply);
 			responseObserver.onCompleted();
 		}
