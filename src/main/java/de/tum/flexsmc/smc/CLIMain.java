@@ -15,20 +15,34 @@ import de.tum.flexsmc.smc.rpc.RPCServer;
 public final class CLIMain {
 	private static final Logger logger = Logger.getLogger(CLIMain.class.getName());
 
+	private Options opt;
 	private CommandLine cmd;
 
 	public CLIMain() {
 
 	}
 
+	private static Options buildOptions() {
+		Options options = new Options();
+
+		options.addOption(Option.builder("i").desc("The id of this player. Must be a unique positive integer.")
+				.longOpt("id").required(false).hasArg().build());
+
+		options.addOption(Option.builder("c")
+				.desc("Custom socket address to listen for local RPC connections. E.g. \"unix:///tmp/grpc.sock\"")
+				.longOpt("suite").required(false).hasArg().build());
+		options.addOption(Option.builder("h").desc("Display this help message").longOpt("help").required(false)
+				.hasArg(false).build());
+
+		return options;
+	}
+
 	public CommandLine parse(String[] args) {
 		try {
 			CommandLineParser parser = new DefaultParser();
-			Options helpOpt = new Options();
-			helpOpt.addOption(Option.builder("h").desc("Display this help message").longOpt("help").required(false)
-					.hasArg(false).build());
 
-			cmd = parser.parse(helpOpt, args, true);
+			opt = buildOptions();
+			cmd = parser.parse(opt, args, true);
 			if (cmd.hasOption("h")) {
 				System.exit(0);
 			}
@@ -42,10 +56,16 @@ public final class CLIMain {
 
 	public static void main(String[] args) {
 		CLIMain cli = new CLIMain();
-		cli.parse(args);
+		RPCServer rpcServer = new RPCServer();
+
+		CommandLine cmd = cli.parse(args);
+		if (cmd.hasOption('c')) {
+			// Custom socket
+			logger.info("Custom socket: " + cmd.getOptionValue('c'));
+			rpcServer.setCustomSocket(cmd.getOptionValue('c'));
+		}
 		
 		// Start RPC server
-		RPCServer rpcServer = new RPCServer();
 		try {
 			rpcServer.start();
 		} catch (IOException e) {

@@ -48,14 +48,14 @@ message SMCTask {
 message PreparePhase {
     message Participant {
         // Fixed authentication (certificate) based identity
-        string authID = 1;
-        // Temporary identity for the current SMC round
-        int32 roundID   = 2;
+        string authID   = 1;
+        // Temporarily assigned peer identity for the current SMC task
+        int32 smcPeerID = 2;
         // Address and port of the service (address:port)
         string endpoint = 3;
     }
     repeated Participant participants = 1;
-    SMCTask smcTask                   = 2;
+    SMCTask smcTask                   = 3;
 }
 
 message SessionPhase {
@@ -64,12 +64,35 @@ message SessionPhase {
 
 // Envelopes to send and receive jobs with some context.
 
+message SMCCmd {
+    uint64 sessionID        = 1;
+    int32 smcPeerID         = 5;
+    enum Phase {
+        PREPARE  = 0;
+        SESSION  = 1;
+        // ...
+        FINISH   = 126;
+        ABORT    = 127;
+    }
+    Phase state              = 2;
+    // Payload packet
+    oneof payload {
+        PreparePhase prepare = 3;
+        SessionPhase session = 4;
+    }
+}
+
+enum MetadataKey {
+    PEERID = 0;
+}
+
 message CmdResult {
     enum Status {
-        SUCCESS     = 0;
-        UNKNOWN_CMD = 1;
-        DENIED      = 2;
-        ABORTED     = 3;
+        SUCCESS      = 0;
+        SUCCESS_DONE = 1;
+        UNKNOWN_CMD  = 8;
+        DENIED       = 9;
+        ABORTED      = 10;
         // Communication related errors
         STREAM_ERR  = 128;
     }

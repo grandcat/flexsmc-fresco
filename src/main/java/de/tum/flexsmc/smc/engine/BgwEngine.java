@@ -11,6 +11,7 @@ import de.tum.flexsmc.smc.aggregator.AggregatorApplication;
 import de.tum.flexsmc.smc.aggregator.Sum;
 import de.tum.flexsmc.smc.config.BgwSuite;
 import de.tum.flexsmc.smc.rpc.PreparePhase;
+import de.tum.flexsmc.smc.rpc.SMCResult;
 import de.tum.flexsmc.smc.utils.Env;
 import dk.alexandra.fresco.framework.Party;
 import dk.alexandra.fresco.framework.ProtocolEvaluator;
@@ -42,9 +43,11 @@ public class BgwEngine {
 	public BgwEngine() {
 	}
 
-	public void initializeConfig(List<PreparePhase.Participant> participants) throws RuntimeException {
-		// TODO fill participants based on Prepare phase
-		int myId = 1;
+	public void initializeConfig(int myId, List<PreparePhase.Participant> participants) throws RuntimeException {
+		l.info("Initialize config: I am ID " + myId + " among other " + participants.size());
+		if (myId < 0) {
+			throw new IllegalArgumentException("Invalid participants or IDs");
+		}
 
 		HashMap<Integer, Party> parties = new HashMap<>(participants.size());
 		int i = 1;
@@ -53,9 +56,11 @@ public class BgwEngine {
 			String ep = p.getEndpoint();
 			int sep = ep.lastIndexOf(':');
 			if (sep < 0) {
-				throw new IllegalArgumentException("Invalid endpoint");
+				throw new IllegalArgumentException("Invalid endpoint address");
 			}
 			String addr = ep.substring(0, sep);
+			// TODO verify if myId matches address
+			// TODO verify availability of chosen port
 			int port = Integer.parseUnsignedInt(ep.substring(sep + 1));
 			// Store party
 			l.info("BgwEngine: party " + new Party(i, addr, port).toString());
@@ -138,14 +143,17 @@ public class BgwEngine {
 		// smcEngine.setup();
 	}
 
-	public void runPhase() {
+	public SMCResult runPhase() {
 		AggregatorApplication sumApp = new Sum(sceConf);
 		l.info("Start: smcEngine.runApplication");
 		smcEngine.runApplication(sumApp);
 		l.info("Done: smcEngine.runApplication");
 		// SMC is done here, so fetch the result
 		OInt[] res = sumApp.getResult();
+		l.info(">>>My SMC result: " + res[0].getValue().toString());
 
+		SMCResult msg = SMCResult.newBuilder().setRes(res[0].getValue().doubleValue()).build();
+		return msg;
 	}
 
 }

@@ -6,6 +6,8 @@ import java.util.HashMap;
 import java.util.logging.Logger;
 
 import de.tum.flexsmc.smc.engine.BgwEngine;
+import de.tum.flexsmc.smc.rpc.CmdResult.Status;
+import de.tum.flexsmc.smc.rpc.SMCCmd.PayloadCase;
 import de.tum.flexsmc.smc.rpc.SMCGrpc.SMCImplBase;
 import io.grpc.Server;
 import io.grpc.ServerInterceptors;
@@ -18,12 +20,15 @@ import io.netty.channel.ServerChannel;
 public class RPCServer {
 	private static final Logger logger = Logger.getLogger(RPCServer.class.getName());
 
-	private final SocketAddress LISTENER_SOCKET = Utils.parseSocketAddress("unix:///tmp/grpc.sock");
-	private int port = 50052;
+	private SocketAddress listenerSocket = Utils.parseSocketAddress("unix:///tmp/grpc.sock");
 	private Server server;
 
 	public RPCServer() {
 		// TODO Auto-generated constructor stub
+	}
+
+	public void setCustomSocket(String socket) {
+		this.listenerSocket = Utils.parseSocketAddress(socket);
 	}
 
 	public void start() throws IOException {
@@ -46,11 +51,11 @@ public class RPCServer {
 			throw new RuntimeException(e);
 		}
 		
-		this.server = NettyServerBuilder.forAddress(LISTENER_SOCKET).bossEventLoopGroup(boss)
+		this.server = NettyServerBuilder.forAddress(listenerSocket).bossEventLoopGroup(boss)
 .workerEventLoopGroup(worker)
 				.channelType(channelType)
 				.addService(ServerInterceptors.intercept(new SMCImpl(), new SessionInterceptor())).build().start();
-		logger.info("RPC server started, listening on socket " + LISTENER_SOCKET.toString());
+		logger.info("RPC server started, listening on socket " + listenerSocket.toString());
 		Runtime.getRuntime().addShutdownHook(new Thread() {
 			@Override
 			public void run() {
@@ -90,6 +95,8 @@ public class RPCServer {
 		private final CmdResult errorInvalidSession = CmdResult.newBuilder().setMsg("Session ID not allowed")
 				.setStatus(CmdResult.Status.DENIED)
 				.build();
+		private final CmdResult errorInvalidTransition = CmdResult.newBuilder().setMsg("Invalid state transition")
+				.setStatus(CmdResult.Status.DENIED).build();
 
 		private HashMap<String, Object> sessions;
 
@@ -119,6 +126,59 @@ public class RPCServer {
 		}
 
 		@Override
+		public void nextCmd(SMCCmd req, StreamObserver<CmdResult> responseObserver) {
+			// Extract current session from ID
+			String sessionID = SessionInterceptor.SESSION_ID.get();
+			logger.info("Current session: " + sessionID);
+			// Fetch associated engine
+			BgwEngine eng = (BgwEngine) sessions.get(sessionID);
+			if (eng == null) {
+				responseObserver.onNext(errorInvalidSession);
+				responseObserver.onCompleted();
+				return;
+			}
+
+			// Prepare reply
+			CmdResult.Builder reply = CmdResult.newBuilder().setStatus(Status.SUCCESS);
+
+			PayloadCase phase = req.getPayloadCase();
+			switch (phase) {
+			case PREPARE: {
+				PreparePhase p = req.getPrepare();
+				logger.info("Prepare phase:" + p.getParticipantsCount());
+
+				try {
+					eng.initializeConfig(req.getSmcPeerID(), p.getParticipantsList());
+					eng.prepareSCE();
+
+					reply.setMsg("prep done");
+				} catch (Exception e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+					sendException(responseObserver, e);
+					return;
+				}
+			}
+				break;
+			case SESSION:
+				SessionPhase p = req.getSession();
+				logger.info("Session phase");
+
+				SMCResult res = eng.runPhase();
+				reply.setMsg("sess done").setResult(res).setStatus(Status.SUCCESS_DONE);
+				break;
+
+			default:
+				responseObserver.onNext(errorInvalidTransition);
+				responseObserver.onCompleted();
+				return;
+			}
+
+			responseObserver.onNext(reply.build());
+			responseObserver.onCompleted();
+		}
+
+		@Override
 		public void doPrepare(PreparePhase req, StreamObserver<CmdResult> responseObserver) {
 			// Extract current session from ID
 			String sessionID = SessionInterceptor.SESSION_ID.get();
@@ -132,7 +192,7 @@ public class RPCServer {
 			}
 
 			try {
-				eng.initializeConfig(req.getParticipantsList());
+				eng.initializeConfig(1, req.getParticipantsList());
 				eng.prepareSCE();
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
@@ -143,6 +203,13 @@ public class RPCServer {
 			CmdResult reply = CmdResult.newBuilder().setMsg("[" + sessionID + "] doPrepare done.")
 					.setStatus(CmdResult.Status.SUCCESS).build();
 			responseObserver.onNext(reply);
+			responseObserver.onCompleted();
+		}
+
+		private void sendException(StreamObserver<CmdResult> responseObserver, Exception e) {
+			CmdResult msg = CmdResult.newBuilder().setMsg(e.getMessage()).setStatus(CmdResult.Status.DENIED)
+					.build();
+			responseObserver.onNext(msg);
 			responseObserver.onCompleted();
 		}
 	}
