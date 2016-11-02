@@ -114,9 +114,9 @@ public class RPCServer {
 				return;
 			}
 			String sessionID = req.getSessionID();
-			sessions.put(sessionID, new BgwEngine());
-			// Prepare Fresco
-			// ...
+			// Setup Fresco and associate with session
+			BgwEngine engine = new BgwEngine();
+			sessions.put(sessionID, engine);
 
 			// Reply to callee
 			CmdResult reply = CmdResult.newBuilder().setMsg("[" + sessionID + "] init done.")
@@ -175,34 +175,6 @@ public class RPCServer {
 			}
 
 			responseObserver.onNext(reply.build());
-			responseObserver.onCompleted();
-		}
-
-		@Override
-		public void doPrepare(PreparePhase req, StreamObserver<CmdResult> responseObserver) {
-			// Extract current session from ID
-			String sessionID = SessionInterceptor.SESSION_ID.get();
-			logger.info("Current session: " + sessionID);
-			// Fetch associated engine
-			BgwEngine eng = (BgwEngine) sessions.get(sessionID);
-			if (eng == null) {
-				responseObserver.onNext(errorInvalidSession);
-				responseObserver.onCompleted();
-				return;
-			}
-
-			try {
-				eng.initializeConfig(1, req.getParticipantsList());
-				eng.prepareSCE();
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-
-			// Reply
-			CmdResult reply = CmdResult.newBuilder().setMsg("[" + sessionID + "] doPrepare done.")
-					.setStatus(CmdResult.Status.SUCCESS).build();
-			responseObserver.onNext(reply);
 			responseObserver.onCompleted();
 		}
 
