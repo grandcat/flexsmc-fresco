@@ -33,7 +33,7 @@ import dk.alexandra.fresco.framework.value.OInt;
  * @author stefan
  *
  */
-public class BgwEngine {
+public class BgwEngine extends EngineControl {
 	private static final Logger l = Logger.getLogger(BgwEngine.class.getName());
 
 	private SCEConfiguration sceConf;
@@ -43,11 +43,11 @@ public class BgwEngine {
 	public BgwEngine() {
 	}
 
-	public void initializeConfig(int myId, List<PreparePhase.Participant> participants) throws RuntimeException {
+	private void initializeConfig(int myId, List<PreparePhase.Participant> participants) throws RuntimeException {
 		l.info("Initialize config: I am ID " + myId + " among other " + participants.size());
 		if (myId < 0) {
 			throw new IllegalArgumentException("Invalid participants or IDs");
-		
+
 		} else if (participants.size() < 2) {
 			throw new IllegalArgumentException("Not enough participants");
 		}
@@ -128,7 +128,7 @@ public class BgwEngine {
 				}
 			}
 		};
-		
+
 		// Initialize BGW suite configuration
 		this.suiteConf = new BgwSuite(sceConf);
 	}
@@ -139,14 +139,15 @@ public class BgwEngine {
 	 * 
 	 * @throws IOException
 	 */
-	public void prepareSCE() throws IOException {
+	public void prepare(int myId, List<PreparePhase.Participant> participants) throws RuntimeException, IOException {
+		initializeConfig(myId, participants);
 		this.smcEngine = SCEFactory.getSCEFromConfiguration(sceConf, suiteConf);
 		l.info("Initialize SCE done");
 		// Initialize all resources and network channels
 		// smcEngine.setup();
 	}
 
-	public SMCResult runPhase() {
+	public SMCResult runSession() {
 		AggregatorApplication sumApp = new Sum(sceConf);
 		l.info("Start: smcEngine.runApplication");
 		smcEngine.runApplication(sumApp);
@@ -157,6 +158,11 @@ public class BgwEngine {
 
 		SMCResult msg = SMCResult.newBuilder().setRes(res[0].getValue().doubleValue()).build();
 		return msg;
+	}
+
+	public void stopAndInvalidate() {
+		this.sceConf = null;
+		l.info("Engine invalidated");
 	}
 
 }

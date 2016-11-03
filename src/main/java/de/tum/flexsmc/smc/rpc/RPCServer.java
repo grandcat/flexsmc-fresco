@@ -2,13 +2,10 @@ package de.tum.flexsmc.smc.rpc;
 
 import java.io.IOException;
 import java.net.SocketAddress;
-import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 import de.tum.flexsmc.smc.engine.BgwEngine;
-import de.tum.flexsmc.smc.rpc.CmdResult.Status;
-import de.tum.flexsmc.smc.rpc.SMCCmd.PayloadCase;
 import de.tum.flexsmc.smc.rpc.SMCGrpc.SMCImplBase;
 import io.grpc.Server;
 import io.grpc.ServerInterceptors;
@@ -96,11 +93,7 @@ public class RPCServer {
 		private final CmdResult errorInvalidSession = CmdResult.newBuilder().setMsg("Session ID not allowed")
 				.setStatus(CmdResult.Status.DENIED)
 				.build();
-		private final CmdResult errorInvalidTransition = CmdResult.newBuilder().setMsg("Invalid state transition")
-				.setStatus(CmdResult.Status.DENIED).build();
-
-		private ConcurrentHashMap<String, Object> sessions;
-		private PayloadCase nextPhase = PayloadCase.PAYLOAD_NOT_SET;
+		private ConcurrentHashMap<String, BgwEngine> sessions;
 
 		public SMCImpl() {
 			// Initialize
@@ -140,82 +133,83 @@ public class RPCServer {
 				return;
 			}
 
-			// Prepare reply
-			CmdResult.Builder reply = CmdResult.newBuilder().setStatus(Status.SUCCESS);
-
-			PayloadCase phase = req.getPayloadCase();
-			switch (phase) {
-			case PREPARE: {
-				PreparePhase p = req.getPrepare();
-				logger.info("Prepare phase:" + p.getParticipantsCount());
-
-				try {
-					eng.initializeConfig(req.getSmcPeerID(), p.getParticipantsList());
-					eng.prepareSCE();
-
-					reply.setMsg("prep done");
-					nextPhase = PayloadCase.SESSION;
-				} catch (Exception e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-					sendException(responseObserver, e);
-					nextPhase = PayloadCase.PREPARE;
-					return;
-				}
-			}
-				break;
-			case SESSION:
-				SessionPhase p = req.getSession();
-				logger.info("Session phase");
-
-				try {
-					SMCResult res = eng.runPhase();
-					reply.setMsg("sess done").setResult(res).setStatus(Status.SUCCESS_DONE);
-				} catch (Exception e) {
-					e.printStackTrace();
-					reply.setMsg("session failed. tear down all connections").setStatus(Status.ABORTED);
-				}
+//			// Prepare reply
+//			CmdResult.Builder reply = CmdResult.newBuilder().setStatus(Status.SUCCESS);
+//
+//			PayloadCase phase = req.getPayloadCase();
+//			switch (phase) {
+//			case PREPARE: {
+//				PreparePhase p = req.getPrepare();
+//				logger.info("Prepare phase:" + p.getParticipantsCount());
+//
+//				try {
+//					eng.prepareSCE(req.getSmcPeerID(), p.getParticipantsList());
+//					reply.setMsg("prep done");
+//				} catch (Exception e) {
+//					// Only send error, but allow to recover.
+//					sendException(responseObserver, e);
+//					e.printStackTrace();
+//					return;
+//				}
+//			}
+//				break;
+//			case SESSION:
+//				SessionPhase p = req.getSession();
+//				logger.info("Session phase");
+//
+//				try {
+//					SMCResult res = eng.runSession();
+//					reply.setMsg("sess done").setResult(res).setStatus(Status.SUCCESS_DONE);
+//				} catch (Exception e) {
+//					gracefulTearDown(sessionID);
+//					e.printStackTrace();
+//					reply.setMsg("session failed. tear down all connections").setStatus(Status.ABORTED);
+//				}
+//				
+//				break;
+//
+//			default:
+//				responseObserver.onNext(errorInvalidTransition);
+//				responseObserver.onCompleted();
+//				return;
+//			}
+			
+			CmdResult resp;
+			try {
+				resp = eng.runNextPhase(req);
 				
-				break;
-
-			default:
-				responseObserver.onNext(errorInvalidTransition);
-				responseObserver.onCompleted();
-				return;
+			} catch (Exception e) {
+				// Exception means that we reached a non-fixable error condition.
+				gracefulTearDown(sessionID);
+				resp = CmdResult.newBuilder().setMsg(e.getMessage()).setStatus(CmdResult.Status.ABORTED).build();
 			}
 
-			responseObserver.onNext(reply.build());
+			responseObserver.onNext(resp);
 			responseObserver.onCompleted();
 		}
 
 		public void tearDown(SessionCtx req, StreamObserver<CmdResult> responseObserver) {
-			String sessionID = req.getSessionID();
-			if (sessions.containsKey(sessionID)) {
-				// Teardown SMC session if still running
-//				BgwEngine eng = (BgwEngine) sessions.get(sessionID);
-				
-				sessions.remove(req.getSessionID());
-				logger.info("Removed session " + sessionID);
-			} else {
-				logger.info("teardown: session not found: " + sessionID);
-			}
+			gracefulTearDown(req.getSessionID());
 			CmdResult msg = CmdResult.newBuilder().setStatus(CmdResult.Status.SUCCESS_DONE).build();
 			responseObserver.onNext(msg);
 			responseObserver.onCompleted();
 			return;
 		}
-
-		private void sendException(StreamObserver<CmdResult> responseObserver, Exception e) {
-			CmdResult msg = CmdResult.newBuilder().setMsg(e.getMessage()).setStatus(CmdResult.Status.DENIED).build();
-			responseObserver.onNext(msg);
-			responseObserver.onCompleted();
+		
+		// Helpers
+		
+		// Tries shutting down any active SMC session and cleans up used resources.
+		private void gracefulTearDown(String sessionID) {
+			BgwEngine oldEngine = sessions.remove(sessionID);
+			if (oldEngine != null) {
+				oldEngine.stopAndInvalidate();
+				logger.info("gracefulTearDown: successful");
+			
+			} else {
+				logger.warning("gracefulTearDown: session not associated: " + sessionID);
+			}
 		}
 		
-//		private void sendFatalException(StreamObserver<CmdResult> responseObserver, Exception e) {
-//			CmdResult msg = CmdResult.newBuilder().setMsg(e.getMessage()).setStatus(CmdResult.Status.ABORTED).build();
-//			responseObserver.onNext(msg);
-//			responseObserver.onCompleted();
-//		}
 	}
 
 }
