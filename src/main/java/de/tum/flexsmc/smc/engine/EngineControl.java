@@ -27,7 +27,7 @@ public abstract class EngineControl {
 	protected final CmdResult errorInvalidTransition = CmdResult.newBuilder().setMsg("Invalid state transition")
 			.setStatus(CmdResult.Status.DENIED).build();
 	
-	protected enum JobProgress {
+	protected enum JobPhase {
 		NOT_INITIALIZED(0),
 		PREPARE_START(1),
 		PREPARE_FINISH(2),
@@ -36,27 +36,33 @@ public abstract class EngineControl {
 		
 		private final int value;
 
-		private JobProgress(int value) {
+		private JobPhase(int value) {
 			this.value = value;
 		}
 	}
-	private final JobProgress[][] allowedTransitions = {
+	
+	/**
+	 * Given the new phase is the first index of this table, the inner array
+	 * contains the possible original phases it could have transitioned from.
+	 * Otherwise, the transition is illegal.
+	 */
+	private final JobPhase[][] allowedTransitions = {
 		{},	//< to: NOT_INITIALIZED, only set on start
-		{JobProgress.NOT_INITIALIZED, JobProgress.PREPARE_START, JobProgress.PREPARE_FINISH},	//< to: PREPARE_START
-		{JobProgress.PREPARE_START},															//< to: PREPARE_FINISH
-		{JobProgress.PREPARE_FINISH},															//< to: SESSION_START
-		{JobProgress.SESSION_START},															//< to: SESSION_FINSIH
+		{JobPhase.NOT_INITIALIZED, JobPhase.PREPARE_START, JobPhase.PREPARE_FINISH},	//< to: PREPARE_START
+		{JobPhase.PREPARE_START},															//< to: PREPARE_FINISH
+		{JobPhase.PREPARE_FINISH},															//< to: SESSION_START
+		{JobPhase.SESSION_START},															//< to: SESSION_FINSIH
 	};
 	
-	private JobProgress phase = JobProgress.NOT_INITIALIZED;
+	private JobPhase phase = JobPhase.NOT_INITIALIZED;
 	
-	protected synchronized void setPhase(JobProgress phase) {
+	protected synchronized void setPhase(JobPhase phase) {
 		this.phase = phase;
 	}
 	
-	protected synchronized void validateSetPhase(JobProgress newPhase) {
+	protected synchronized void validateSetPhase(JobPhase newPhase) {
 		l.info("Old state->" + this.phase + " new->" + newPhase);
-		JobProgress oldPhase = this.phase;
+		JobPhase oldPhase = this.phase;
 		if (ArrayUtils.contains(allowedTransitions[newPhase.value], oldPhase)) {
 			// Valid transition, so apply.
 			this.phase = newPhase;
@@ -74,7 +80,7 @@ public abstract class EngineControl {
 		PayloadCase phase = req.getPayloadCase();
 		switch (phase) {
 		case PREPARE: {
-			validateSetPhase(JobProgress.PREPARE_START);
+			validateSetPhase(JobPhase.PREPARE_START);
 			
 			PreparePhase p = req.getPrepare();
 			l.info("Prepare phase:" + p.getParticipantsCount());
@@ -82,7 +88,7 @@ public abstract class EngineControl {
 			try {
 				prepare(req.getSmcPeerID(), p.getParticipantsList());
 				reply.setMsg("prep done");
-				setPhase(JobProgress.PREPARE_FINISH);
+				setPhase(JobPhase.PREPARE_FINISH);
 				
 			} catch (Exception e) {
 				// Only send error, but allow to recover.
@@ -93,7 +99,7 @@ public abstract class EngineControl {
 			break;
 			
 		case SESSION:
-			validateSetPhase(JobProgress.SESSION_START);
+			validateSetPhase(JobPhase.SESSION_START);
 			
 			SessionPhase p = req.getSession();
 			l.info("Session phase");
@@ -102,7 +108,7 @@ public abstract class EngineControl {
 			// Note: exceptions are thrown in case of irrevesible errors.
 			reply.setMsg("sess done").setResult(res).setStatus(Status.SUCCESS_DONE);
 
-			setPhase(JobProgress.SESSION_FINSIH);
+			setPhase(JobPhase.SESSION_FINSIH);
 			break;
 
 		default:
