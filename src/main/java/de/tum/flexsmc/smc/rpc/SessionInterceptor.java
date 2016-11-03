@@ -25,6 +25,7 @@ public class SessionInterceptor implements ServerInterceptor {
 		// Ignore methods which do not require a valid session ID yet.
 		ignoreMethods = new HashSet<String>(1);
 		ignoreMethods.add("smc.SMC/Init");
+		ignoreMethods.add("smc.SMC/TearDown");
 	}
 
 	@Override
