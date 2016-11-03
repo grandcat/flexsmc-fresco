@@ -47,6 +47,9 @@ public class BgwEngine {
 		l.info("Initialize config: I am ID " + myId + " among other " + participants.size());
 		if (myId < 0) {
 			throw new IllegalArgumentException("Invalid participants or IDs");
+		
+		} else if (participants.size() < 2) {
+			throw new IllegalArgumentException("Not enough participants");
 		}
 
 		HashMap<Integer, Party> parties = new HashMap<>(participants.size());
