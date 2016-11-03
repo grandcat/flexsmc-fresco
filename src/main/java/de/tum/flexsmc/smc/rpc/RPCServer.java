@@ -132,47 +132,6 @@ public class RPCServer {
 				responseObserver.onCompleted();
 				return;
 			}
-
-//			// Prepare reply
-//			CmdResult.Builder reply = CmdResult.newBuilder().setStatus(Status.SUCCESS);
-//
-//			PayloadCase phase = req.getPayloadCase();
-//			switch (phase) {
-//			case PREPARE: {
-//				PreparePhase p = req.getPrepare();
-//				logger.info("Prepare phase:" + p.getParticipantsCount());
-//
-//				try {
-//					eng.prepareSCE(req.getSmcPeerID(), p.getParticipantsList());
-//					reply.setMsg("prep done");
-//				} catch (Exception e) {
-//					// Only send error, but allow to recover.
-//					sendException(responseObserver, e);
-//					e.printStackTrace();
-//					return;
-//				}
-//			}
-//				break;
-//			case SESSION:
-//				SessionPhase p = req.getSession();
-//				logger.info("Session phase");
-//
-//				try {
-//					SMCResult res = eng.runSession();
-//					reply.setMsg("sess done").setResult(res).setStatus(Status.SUCCESS_DONE);
-//				} catch (Exception e) {
-//					gracefulTearDown(sessionID);
-//					e.printStackTrace();
-//					reply.setMsg("session failed. tear down all connections").setStatus(Status.ABORTED);
-//				}
-//				
-//				break;
-//
-//			default:
-//				responseObserver.onNext(errorInvalidTransition);
-//				responseObserver.onCompleted();
-//				return;
-//			}
 			
 			CmdResult resp;
 			try {

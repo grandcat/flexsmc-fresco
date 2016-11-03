@@ -66,7 +66,7 @@ public abstract class EngineControl {
 		}
 	}
 	
-	public CmdResult runNextPhase(SMCCmd req) {
+	public CmdResult runNextPhase(SMCCmd req) throws Exception {
 		// Prepare reply
 		CmdResult.Builder reply = CmdResult.newBuilder().setStatus(Status.SUCCESS);
 		l.info("Incoming phase: " + req.getPayloadCase().toString());
