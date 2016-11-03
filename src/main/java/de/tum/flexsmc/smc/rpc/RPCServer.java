@@ -164,8 +164,14 @@ public class RPCServer {
 				SessionPhase p = req.getSession();
 				logger.info("Session phase");
 
-				SMCResult res = eng.runPhase();
-				reply.setMsg("sess done").setResult(res).setStatus(Status.SUCCESS_DONE);
+				try {
+					SMCResult res = eng.runPhase();
+					reply.setMsg("sess done").setResult(res).setStatus(Status.SUCCESS_DONE);
+				} catch (Exception e) {
+					e.printStackTrace();
+					reply.setMsg("session failed. tear down all connections").setStatus(Status.ABORTED);
+				}
+				
 				break;
 
 			default:
@@ -200,6 +206,12 @@ public class RPCServer {
 			responseObserver.onNext(msg);
 			responseObserver.onCompleted();
 		}
+		
+//		private void sendFatalException(StreamObserver<CmdResult> responseObserver, Exception e) {
+//			CmdResult msg = CmdResult.newBuilder().setMsg(e.getMessage()).setStatus(CmdResult.Status.ABORTED).build();
+//			responseObserver.onNext(msg);
+//			responseObserver.onCompleted();
+//		}
 	}
 
 }
