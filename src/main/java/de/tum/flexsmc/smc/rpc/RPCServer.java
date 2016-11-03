@@ -3,6 +3,7 @@ package de.tum.flexsmc.smc.rpc;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 import de.tum.flexsmc.smc.engine.BgwEngine;
@@ -98,11 +99,12 @@ public class RPCServer {
 		private final CmdResult errorInvalidTransition = CmdResult.newBuilder().setMsg("Invalid state transition")
 				.setStatus(CmdResult.Status.DENIED).build();
 
-		private HashMap<String, Object> sessions;
+		private ConcurrentHashMap<String, Object> sessions;
+		private PayloadCase nextPhase = PayloadCase.PAYLOAD_NOT_SET;
 
 		public SMCImpl() {
 			// Initialize
-			sessions = new HashMap<>();
+			sessions = new ConcurrentHashMap<>();
 		}
 
 		@Override
@@ -152,10 +154,12 @@ public class RPCServer {
 					eng.prepareSCE();
 
 					reply.setMsg("prep done");
+					nextPhase = PayloadCase.SESSION;
 				} catch (Exception e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 					sendException(responseObserver, e);
+					nextPhase = PayloadCase.PREPARE;
 					return;
 				}
 			}
