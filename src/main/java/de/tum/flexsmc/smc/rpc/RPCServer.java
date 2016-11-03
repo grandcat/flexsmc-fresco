@@ -178,9 +178,25 @@ public class RPCServer {
 			responseObserver.onCompleted();
 		}
 
+		public void tearDown(SessionCtx req, StreamObserver<CmdResult> responseObserver) {
+			String sessionID = req.getSessionID();
+			if (sessions.containsKey(sessionID)) {
+				// Teardown SMC session if still running
+//				BgwEngine eng = (BgwEngine) sessions.get(sessionID);
+				
+				sessions.remove(req.getSessionID());
+				logger.info("Removed session " + sessionID);
+			} else {
+				logger.info("teardown: session not found: " + sessionID);
+			}
+			CmdResult msg = CmdResult.newBuilder().setStatus(CmdResult.Status.SUCCESS_DONE).build();
+			responseObserver.onNext(msg);
+			responseObserver.onCompleted();
+			return;
+		}
+
 		private void sendException(StreamObserver<CmdResult> responseObserver, Exception e) {
-			CmdResult msg = CmdResult.newBuilder().setMsg(e.getMessage()).setStatus(CmdResult.Status.DENIED)
-					.build();
+			CmdResult msg = CmdResult.newBuilder().setMsg(e.getMessage()).setStatus(CmdResult.Status.DENIED).build();
 			responseObserver.onNext(msg);
 			responseObserver.onCompleted();
 		}
