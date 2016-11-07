@@ -91,7 +91,7 @@ public abstract class EngineControl {
 				setPhase(JobPhase.PREPARE_FINISH);
 				
 			} catch (Exception e) {
-				// Only send error, but allow to recover.
+				// Only send error, but allow to recover. GW should reinit this phase.
 				reply.setStatus(CmdResult.Status.DENIED).setMsg(e.getMessage());
 				e.printStackTrace();
 			}
