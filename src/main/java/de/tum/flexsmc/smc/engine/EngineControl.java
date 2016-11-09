@@ -10,6 +10,7 @@ import de.tum.flexsmc.smc.rpc.CmdResult;
 import de.tum.flexsmc.smc.rpc.PreparePhase;
 import de.tum.flexsmc.smc.rpc.SMCCmd;
 import de.tum.flexsmc.smc.rpc.SMCResult;
+import de.tum.flexsmc.smc.rpc.SMCTask;
 import de.tum.flexsmc.smc.rpc.SessionPhase;
 import de.tum.flexsmc.smc.rpc.CmdResult.Status;
 import de.tum.flexsmc.smc.rpc.SMCCmd.PayloadCase;
@@ -24,8 +25,12 @@ import de.tum.flexsmc.smc.rpc.SMCCmd.PayloadCase;
 public abstract class EngineControl {
 	private static final Logger l = Logger.getLogger(EngineControl.class.getName());
 	
-	protected final CmdResult errorInvalidTransition = CmdResult.newBuilder().setMsg("Invalid state transition")
+	protected static final CmdResult errorInvalidTransition = CmdResult.newBuilder().setMsg("Invalid state transition")
 			.setStatus(CmdResult.Status.DENIED).build();
+	protected static final CmdResult errorInvalidTask = CmdResult.newBuilder().setMsg("Invalid task")
+			.setStatus(CmdResult.Status.DENIED).build();
+	
+	protected SMCTask task;
 	
 	protected enum JobPhase {
 		NOT_INITIALIZED(0),
@@ -72,6 +77,10 @@ public abstract class EngineControl {
 		}
 	}
 	
+	protected synchronized SMCTask getTask() {
+		return this.task;
+	}
+	
 	public CmdResult runNextPhase(SMCCmd req) throws Exception {
 		// Prepare reply
 		CmdResult.Builder reply = CmdResult.newBuilder().setStatus(Status.SUCCESS);
@@ -83,12 +92,25 @@ public abstract class EngineControl {
 			validateSetPhase(JobPhase.PREPARE_START);
 			
 			PreparePhase p = req.getPrepare();
-			l.info("Prepare phase:" + p.getParticipantsCount());
+			l.info("Prepare phase:" + p.getParticipantsCount());	
 
 			try {
+				// SMCTask must be set
+				SMCTask task = p.getSmcTask();
+				if (task == null) {
+					return errorInvalidTask;
+				}
+				this.task = task;
+				
+				// Start SMC preparation
 				prepare(req.getSmcPeerID(), p.getParticipantsList());
 				reply.setMsg("prep done");
 				setPhase(JobPhase.PREPARE_FINISH);
+				
+			} catch (SmcException e) {
+				// Only send error, but allow to recover. GW should reinit this phase.
+				reply = e.generateErrorMessage();
+				e.printStackTrace();
 				
 			} catch (Exception e) {
 				// Only send error, but allow to recover. GW should reinit this phase.
@@ -105,7 +127,8 @@ public abstract class EngineControl {
 			l.info("Session phase");
 
 			SMCResult res = runSession();
-			// Note: exceptions are thrown in case of irrevesible errors.
+			// Note: exceptions are thrown in case of irrevesible errors. If not handled here,
+			// RPCServer generates and send a error message.
 			reply.setMsg("sess done").setResult(res).setStatus(Status.SUCCESS_DONE);
 
 			setPhase(JobPhase.SESSION_FINSIH);

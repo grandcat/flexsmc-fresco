@@ -7,9 +7,13 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.apache.commons.lang.ArrayUtils;
+
 import de.tum.flexsmc.smc.aggregator.AggregatorApplication;
 import de.tum.flexsmc.smc.aggregator.Sum;
 import de.tum.flexsmc.smc.config.BgwSuite;
+import de.tum.flexsmc.smc.rpc.Aggregator;
+import de.tum.flexsmc.smc.rpc.CmdResult;
 import de.tum.flexsmc.smc.rpc.PreparePhase;
 import de.tum.flexsmc.smc.rpc.SMCResult;
 import de.tum.flexsmc.smc.utils.Env;
@@ -35,12 +39,24 @@ import dk.alexandra.fresco.framework.value.OInt;
  */
 public class BgwEngine extends EngineControl {
 	private static final Logger l = Logger.getLogger(BgwEngine.class.getName());
+	
+	public static final Aggregator[] supportedAggregators = {Aggregator.SUM};
 
 	private SCEConfiguration sceConf;
 	private ProtocolSuiteConfiguration suiteConf;
 	private SCE smcEngine;
 
+
 	public BgwEngine() {
+	}
+	
+	private void verifyTaskRequirements() throws RuntimeException {
+		// Task object must already be set by EngineControl.
+		
+		// Aggregator support
+		if (!ArrayUtils.contains(supportedAggregators, task.getAggregator())) {
+			throw new SmcException("aggregator not supported", CmdResult.Status.UNKNOWN_CMD);
+		}
 	}
 
 	private void initializeConfig(int myId, List<PreparePhase.Participant> participants) throws RuntimeException {
@@ -62,7 +78,7 @@ public class BgwEngine extends EngineControl {
 				throw new IllegalArgumentException("Invalid endpoint address");
 			}
 			String addr = ep.substring(0, sep);
-			// TODO verify if myId matches address
+			// TODO verify if myId matches given address (possibly spoofing?)
 			// TODO verify availability of chosen port
 			int port = Integer.parseUnsignedInt(ep.substring(sep + 1));
 			// Store party
@@ -140,20 +156,40 @@ public class BgwEngine extends EngineControl {
 	 * @throws IOException
 	 */
 	public void prepare(int myId, List<PreparePhase.Participant> participants) throws RuntimeException, IOException {
+		verifyTaskRequirements();
+		l.info("Task verification done");
+		
 		initializeConfig(myId, participants);
 		this.smcEngine = SCEFactory.getSCEFromConfiguration(sceConf, suiteConf);
+		// XXX: allows to kill some nodes in a critical phase while debugging
+		try {
+			Thread.sleep(5000);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		l.info("Initialize SCE done");
+		
 		// Initialize all resources and network channels
 		// smcEngine.setup();
 	}
 
 	public SMCResult runSession() {
-		AggregatorApplication sumApp = new Sum(sceConf);
+		AggregatorApplication frescoApp;
+		switch (this.task.getAggregator()) {
+		case SUM:
+			frescoApp = new Sum(sceConf);
+			break;
+
+		default:
+			// Should not reach this code. Normally checked in Prepare phase.
+			throw new SmcException("aggregator not supported", CmdResult.Status.ABORTED);
+		}
 		l.info("Start: smcEngine.runApplication");
-		smcEngine.runApplication(sumApp);
+		smcEngine.runApplication(frescoApp);
 		l.info("Done: smcEngine.runApplication");
 		// SMC is done here, so fetch the result
-		OInt[] res = sumApp.getResult();
+		OInt[] res = frescoApp.getResult();
 		l.info(">>>My SMC result: " + res[0].getValue().toString());
 
 		SMCResult msg = SMCResult.newBuilder().setRes(res[0].getValue().doubleValue()).build();
