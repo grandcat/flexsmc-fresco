@@ -99,6 +99,21 @@ public class RPCServer {
 			// Initialize
 			sessions = new ConcurrentHashMap<>();
 		}
+		
+		@Override
+		public void resetAll(FilterArgs req, StreamObserver<CmdResult> responseObserver) {
+			for (String sessionID : sessions.keySet()) {
+				logger.info(">>>>>>>> Start shutting down session: " + sessionID);
+				gracefulTearDown(sessionID);
+			}
+			// Reset should always work. If sessions are still running, the
+			// corresponding
+			// functions should throw an error to their caller instead.
+			logger.info(">>>>>>>> DONE shutting down resetAll");
+			CmdResult reply = CmdResult.newBuilder().setMsg("reset done.").setStatus(CmdResult.Status.SUCCESS).build();
+			responseObserver.onNext(reply);
+			responseObserver.onCompleted();
+		}
 
 		@Override
 		public void init(SessionCtx req, StreamObserver<CmdResult> responseObserver) {
@@ -113,7 +128,7 @@ public class RPCServer {
 			BgwEngine engine = new BgwEngine();
 			sessions.put(sessionID, engine);
 
-			// Reply to callee
+			// Reply to caller
 			CmdResult reply = CmdResult.newBuilder().setMsg("[" + sessionID + "] init done.")
 					.setStatus(CmdResult.Status.SUCCESS).build();
 			responseObserver.onNext(reply);

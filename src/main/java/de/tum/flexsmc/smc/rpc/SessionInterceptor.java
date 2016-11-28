@@ -24,6 +24,7 @@ public class SessionInterceptor implements ServerInterceptor {
 	public SessionInterceptor() {
 		// Ignore methods which do not require a valid session ID yet.
 		ignoreMethods = new HashSet<String>(1);
+		ignoreMethods.add("smc.SMC/ResetAll");
 		ignoreMethods.add("smc.SMC/Init");
 		ignoreMethods.add("smc.SMC/TearDown");
 	}
@@ -32,6 +33,7 @@ public class SessionInterceptor implements ServerInterceptor {
 	public <ReqT, RespT> Listener<ReqT> interceptCall(ServerCall<ReqT, RespT> call, Metadata headers,
 			ServerCallHandler<ReqT, RespT> next) {
 		String methodName = call.getMethodDescriptor().getFullMethodName();
+		System.out.println(">>>>>>>>>>>>> "+ methodName);
 		if (ignoreMethods.contains(methodName)) {
 			return next.startCall(call, headers);
 		}
@@ -40,7 +42,7 @@ public class SessionInterceptor implements ServerInterceptor {
 
 		String sessID = headers.get(SESSION_KEY);
 		if (sessID == null) {
-			call.close(Status.PERMISSION_DENIED.withDescription("no session-id"), new Metadata());
+			call.close(Status.UNAUTHENTICATED.withDescription("no session-id"), new Metadata());
 			return new Listener<ReqT>() {
 			};
 		}
