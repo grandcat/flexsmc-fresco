@@ -1,4 +1,4 @@
 [submodule "src/main/resources/fresco"]
 	path = src/main/resources/fresco
-	url = git@github.com:grandcat/fresco.git
+	url = https://github.com/grandcat/fresco.git
 	branch = protocol_evaluation
