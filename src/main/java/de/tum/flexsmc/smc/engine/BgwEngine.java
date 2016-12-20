@@ -198,7 +198,9 @@ public class BgwEngine extends EngineControl {
 
 	public void stopAndInvalidate() {
 		l.info("Engine shutdown invoked...");
-		this.smcEngine.shutdownSCE();
+		if (this.smcEngine != null) {
+			this.smcEngine.shutdownSCE();
+		}
 		this.suiteConf = null;
 		this.sceConf = null;
 	}
