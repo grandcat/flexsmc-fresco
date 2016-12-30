@@ -7,7 +7,7 @@ import dk.alexandra.fresco.framework.sce.configuration.SCEConfiguration;
 import dk.alexandra.fresco.suite.bgw.configuration.BgwConfiguration;
 
 public class BgwSuite implements BgwConfiguration {
-	private static final Logger logger = Logger.getLogger(BgwSuite.class.getName());
+	private static final Logger l = Logger.getLogger(BgwSuite.class.getName());
 	private static BigInteger DEFAULT_MODULUS = new BigInteger("618970019642690137449562111");
 
 	private int threshold;
@@ -19,7 +19,7 @@ public class BgwSuite implements BgwConfiguration {
 		threshold = ((int) Math.ceil((double) sceConf.getParties().size() / 2.0)) - 1;
 		if (threshold < 0) {
 			threshold = 0;
-			logger.severe("BGW: not enough parties to provide any protection for corruption");
+			l.severe("BGW: not enough parties to provide any protection for corruption");
 		}
 	}
 

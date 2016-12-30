@@ -1,6 +1,9 @@
 package de.tum.flexsmc.smc;
 
 import java.io.IOException;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogManager;
 import java.util.logging.Logger;
 
 import org.apache.commons.cli.CommandLine;
@@ -13,13 +16,17 @@ import org.apache.commons.cli.ParseException;
 import de.tum.flexsmc.smc.rpc.RPCServer;
 
 public final class CLIMain {
+	// Control logging behavior of io.netty that is part of gRPC.
+	static {
+		System.setProperty("logback.configurationFile", "logback.xml");
+	}
+
 	private static final Logger logger = Logger.getLogger(CLIMain.class.getName());
 
 	private Options opt;
 	private CommandLine cmd;
 
 	public CLIMain() {
-
 	}
 
 	private static Options buildOptions() {

@@ -38,8 +38,8 @@ public class Sum implements AggregatorApplication {
 
 	@Override
 	public ProtocolProducer prepareApplication(ProtocolFactory factory) {
-		Reporter.init(Level.INFO);
-		Reporter.info(">>>>> I am player " + sceConf.getMyId());
+		Reporter.init(Level.WARNING);
+		Reporter.fine(">>>>> I am player " + sceConf.getMyId());
 
 		BasicNumericFactory fac = (BasicNumericFactory) factory;
 		NumericIOBuilder ioBuilder = new NumericIOBuilder(fac);

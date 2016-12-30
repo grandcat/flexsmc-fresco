@@ -13,6 +13,7 @@ import de.tum.flexsmc.smc.rpc.SMCResult;
 import de.tum.flexsmc.smc.rpc.SMCTask;
 import de.tum.flexsmc.smc.rpc.SessionPhase;
 import de.tum.flexsmc.smc.rpc.CmdResult.Status;
+import de.tum.flexsmc.smc.rpc.DebugPhase;
 import de.tum.flexsmc.smc.rpc.SMCCmd.PayloadCase;
 
 /**
@@ -66,7 +67,7 @@ public abstract class EngineControl {
 	}
 	
 	protected synchronized void validateSetPhase(JobPhase newPhase) {
-		l.info("Old state->" + this.phase + " new->" + newPhase);
+		l.finer("Old state->" + this.phase + " new->" + newPhase);
 		JobPhase oldPhase = this.phase;
 		if (ArrayUtils.contains(allowedTransitions[newPhase.value], oldPhase)) {
 			// Valid transition, so apply.
@@ -84,7 +85,7 @@ public abstract class EngineControl {
 	public CmdResult runNextPhase(SMCCmd req) throws Exception {
 		// Prepare reply
 		CmdResult.Builder reply = CmdResult.newBuilder().setStatus(Status.SUCCESS);
-		l.info("Incoming phase: " + req.getPayloadCase().toString());
+		l.finer("Incoming phase: " + req.getPayloadCase().toString());
 
 		PayloadCase phase = req.getPayloadCase();
 		switch (phase) {
@@ -92,7 +93,7 @@ public abstract class EngineControl {
 			validateSetPhase(JobPhase.PREPARE_START);
 			
 			PreparePhase p = req.getPrepare();
-			l.info("Prepare phase:" + p.getParticipantsCount());	
+			l.fine("Prepare phase:" + p.getParticipantsCount());	
 
 			try {
 				// SMCTask must be set
@@ -124,15 +125,25 @@ public abstract class EngineControl {
 			validateSetPhase(JobPhase.SESSION_START);
 			
 			SessionPhase p = req.getSession();
-			l.info("Session phase");
+			l.fine("Session phase");
 
 			SMCResult res = runSession();
 			// Note: exceptions are thrown in case of irrevesible errors. If not handled here,
 			// RPCServer generates and send a error message.
 			reply.setMsg("sess done").setResult(res).setStatus(Status.SUCCESS_DONE);
+			// Note: do not expect any further communication for current job session.
 
 			setPhase(JobPhase.SESSION_FINSIH);
 			break;
+			
+		case DEBUG: {
+			DebugPhase dp = req.getDebug();
+
+			SMCResult pong = SMCResult.newBuilder().setRes((float) (dp.getPing() + 1)).build();
+			// No validation. Debug phase is always valid.
+			reply.setMsg("pong: debug received").setResult(pong).setStatus(Status.SUCCESS);
+			break;
+		}
 
 		default:
 			return errorInvalidTransition;

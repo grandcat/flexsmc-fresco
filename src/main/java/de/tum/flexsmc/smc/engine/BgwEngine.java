@@ -60,7 +60,7 @@ public class BgwEngine extends EngineControl {
 	}
 
 	private void initializeConfig(int myId, List<PreparePhase.Participant> participants) throws RuntimeException {
-		l.info("Initialize config: I am ID " + myId + " among other " + participants.size());
+		l.fine("Initialize config: I am ID " + myId + " among other " + participants.size());
 		if (myId < 0) {
 			throw new IllegalArgumentException("Invalid participants or IDs");
 
@@ -82,7 +82,7 @@ public class BgwEngine extends EngineControl {
 			// TODO verify availability of chosen port
 			int port = Integer.parseUnsignedInt(ep.substring(sep + 1));
 			// Store party
-			l.info("BgwEngine: party " + new Party(i, addr, port).toString());
+			l.fine("BgwEngine: party " + new Party(i, addr, port).toString());
 			parties.put(i, new Party(i, addr, port));
 			i++;
 		}
@@ -107,7 +107,7 @@ public class BgwEngine extends EngineControl {
 
 			@Override
 			public Level getLogLevel() {
-				return Level.FINE;
+				return Level.SEVERE;
 			}
 
 			@Override
@@ -157,18 +157,18 @@ public class BgwEngine extends EngineControl {
 	 */
 	public void prepare(int myId, List<PreparePhase.Participant> participants) throws RuntimeException, IOException {
 		verifyTaskRequirements();
-		l.info("Task verification done");
+		l.finer("Task verification done");
 		
 		initializeConfig(myId, participants);
 		this.smcEngine = SCEFactory.getSCEFromConfiguration(sceConf, suiteConf);
 		// XXX: allows to kill some nodes in a critical phase while debugging
-		try {
-			Thread.sleep(5000);
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		l.info("Initialize SCE done");
+//		try {
+//			Thread.sleep(5000);
+//		} catch (InterruptedException e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		}
+		l.fine("Initialize SCE prepare done");
 		
 		// Initialize all resources and network channels
 		// smcEngine.setup();
@@ -185,19 +185,19 @@ public class BgwEngine extends EngineControl {
 			// Should not reach this code. Normally checked in Prepare phase.
 			throw new SmcException("aggregator not supported", CmdResult.Status.ABORTED);
 		}
-		l.info("Start: smcEngine.runApplication");
+		l.finer("Start: smcEngine.runApplication");
 		smcEngine.runApplication(frescoApp);
-		l.info("Done: smcEngine.runApplication");
+		l.finer("Done: smcEngine.runApplication");
 		// SMC is done here, so fetch the result
 		OInt[] res = frescoApp.getResult();
-		l.info(">>>My SMC result: " + res[0].getValue().toString());
+		l.info("Session done with result: " + res[0].getValue().toString());
 
 		SMCResult msg = SMCResult.newBuilder().setRes(res[0].getValue().doubleValue()).build();
 		return msg;
 	}
 
 	public void stopAndInvalidate() {
-		l.info("Engine shutdown invoked...");
+		l.fine("Engine shutdown invoked...");
 		if (this.smcEngine != null) {
 			this.smcEngine.shutdownSCE();
 		}

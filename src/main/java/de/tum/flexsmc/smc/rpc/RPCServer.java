@@ -16,7 +16,7 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
 
 public class RPCServer {
-	private static final Logger logger = Logger.getLogger(RPCServer.class.getName());
+	private static final Logger l = Logger.getLogger(RPCServer.class.getName());
 
 	private SocketAddress listenerSocket = Utils.parseSocketAddress("unix:///tmp/grpc.sock");
 	private Server server;
@@ -53,7 +53,7 @@ public class RPCServer {
 .workerEventLoopGroup(worker)
 				.channelType(channelType)
 				.addService(ServerInterceptors.intercept(new SMCImpl(), new SessionInterceptor())).build().start();
-		logger.info("RPC server started, listening on socket " + listenerSocket.toString());
+		l.info("RPC server started, listening on socket " + listenerSocket.toString());
 		Runtime.getRuntime().addShutdownHook(new Thread() {
 			@Override
 			public void run() {
@@ -103,13 +103,13 @@ public class RPCServer {
 		@Override
 		public void resetAll(FilterArgs req, StreamObserver<CmdResult> responseObserver) {
 			for (String sessionID : sessions.keySet()) {
-				logger.info(">>>>>>>> Start shutting down session: " + sessionID);
+				l.finer("Start shutting down session: " + sessionID);
 				gracefulTearDown(sessionID);
 			}
 			// Reset should always work. If sessions are still running, the
 			// corresponding
 			// functions should throw an error to their caller instead.
-			logger.info(">>>>>>>> DONE shutting down resetAll");
+			l.finer("DONE shutting down resetAll");
 			CmdResult reply = CmdResult.newBuilder().setMsg("reset done.").setStatus(CmdResult.Status.SUCCESS).build();
 			responseObserver.onNext(reply);
 			responseObserver.onCompleted();
@@ -127,6 +127,8 @@ public class RPCServer {
 			// Setup Fresco and associate with session
 			BgwEngine engine = new BgwEngine();
 			sessions.put(sessionID, engine);
+			
+			l.info("[" + sessionID + "] new session started");
 
 			// Reply to caller
 			CmdResult reply = CmdResult.newBuilder().setMsg("[" + sessionID + "] init done.")
@@ -139,7 +141,7 @@ public class RPCServer {
 		public void nextCmd(SMCCmd req, StreamObserver<CmdResult> responseObserver) {
 			// Extract current session from ID
 			String sessionID = SessionInterceptor.SESSION_ID.get();
-			logger.info("Current session: " + sessionID);
+			l.finer("Current session: " + sessionID);
 			// Fetch associated engine
 			BgwEngine eng = (BgwEngine) sessions.get(sessionID);
 			if (eng == null) {
@@ -177,10 +179,10 @@ public class RPCServer {
 			BgwEngine oldEngine = sessions.remove(sessionID);
 			if (oldEngine != null) {
 				oldEngine.stopAndInvalidate();
-				logger.info("gracefulTearDown: successful");
+				l.fine("gracefulTearDown: successful");
 			
 			} else {
-				logger.warning("gracefulTearDown: session not associated: " + sessionID);
+				l.warning("gracefulTearDown: session not associated: " + sessionID);
 			}
 		}
 		

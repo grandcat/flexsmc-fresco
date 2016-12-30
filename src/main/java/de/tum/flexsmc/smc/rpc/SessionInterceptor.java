@@ -13,7 +13,7 @@ import io.grpc.ServerInterceptor;
 import io.grpc.Status;
 
 public class SessionInterceptor implements ServerInterceptor {
-	private static final Logger logger = Logger.getLogger(SessionInterceptor.class.getName());
+	private static final Logger l = Logger.getLogger(SessionInterceptor.class.getName());
 
 	private static final Metadata.Key<String> SESSION_KEY = Metadata.Key.of("session-id",
 			Metadata.ASCII_STRING_MARSHALLER);
@@ -33,12 +33,11 @@ public class SessionInterceptor implements ServerInterceptor {
 	public <ReqT, RespT> Listener<ReqT> interceptCall(ServerCall<ReqT, RespT> call, Metadata headers,
 			ServerCallHandler<ReqT, RespT> next) {
 		String methodName = call.getMethodDescriptor().getFullMethodName();
-		System.out.println(">>>>>>>>>>>>> "+ methodName);
 		if (ignoreMethods.contains(methodName)) {
 			return next.startCall(call, headers);
 		}
 		// Require a valid session ID from now on
-		logger.fine("Session: " + headers.get(SESSION_KEY));
+		l.finest("Interceptor session: " + headers.get(SESSION_KEY));
 
 		String sessID = headers.get(SESSION_KEY);
 		if (sessID == null) {
