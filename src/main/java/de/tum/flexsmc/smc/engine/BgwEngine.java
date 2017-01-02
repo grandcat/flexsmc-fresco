@@ -69,7 +69,6 @@ public class BgwEngine extends EngineControl {
 		}
 
 		HashMap<Integer, Party> parties = new HashMap<>(participants.size());
-		int i = 1;
 		for (PreparePhase.Participant p : participants) {
 			// Extract address and port from Endpoint (addr:port)
 			String ep = p.getEndpoint();
@@ -82,9 +81,8 @@ public class BgwEngine extends EngineControl {
 			// TODO verify availability of chosen port
 			int port = Integer.parseUnsignedInt(ep.substring(sep + 1));
 			// Store party
-			l.fine("BgwEngine: party " + new Party(i, addr, port).toString());
-			parties.put(i, new Party(i, addr, port));
-			i++;
+			l.fine("BgwEngine: party " + new Party(p.getSmcPeerID(), addr, port).toString());
+			parties.put(p.getSmcPeerID(), new Party(p.getSmcPeerID(), addr, port));
 		}
 
 		final Storage storage = new InMemoryStorage();
