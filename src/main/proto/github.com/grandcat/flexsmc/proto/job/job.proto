@@ -32,13 +32,22 @@ enum Aggregator {
     STD_DEVIATION   = 3;
 
     DBG_PINGPONG    = 1000;
+    DBG_SET_CONFIG  = 1001;
+}
+
+message Option {
+    oneof optValue {
+        string str = 1;
+        int32 dec  = 2;
+    }
 }
 
 message SMCTask {
-    string set            = 1;
-    DataOrigin source     = 2;
+    string set                       = 1;
+    DataOrigin source                = 2;
     // (Pre)Selectors
-    Aggregator aggregator = 4;
+    Aggregator aggregator            = 4;
+    map<string, Option> options      = 6;
     string ticketSignature           = 7;
 
     google.protobuf.Timestamp issued = 8;
@@ -68,7 +77,10 @@ message SessionPhase {
 }
 
 message DebugPhase {
-    int32 ping = 1;
+    int32 ping                  = 1;
+    bool morePhases             = 3;
+    // options configures the peers' environment. Otherwise, it is empty.
+    map<string, Option> options = 2;
 }
 
 // Envelopes to send and receive jobs with some context.
