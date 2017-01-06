@@ -138,10 +138,17 @@ public abstract class EngineControl {
 			
 		case DEBUG: {
 			DebugPhase dp = req.getDebug();
+			Status msgStatus = Status.SUCCESS_DONE;
+			if (dp.getMorePhases() == true) {
+				// Means not to shutdown this session resource as more packets will arrive.
+				msgStatus = Status.SUCCESS;
+			}
 
 			SMCResult pong = SMCResult.newBuilder().setRes((float) (dp.getPing() + 1)).build();
 			// No validation. Debug phase is always valid.
-			reply.setMsg("pong: debug received").setResult(pong).setStatus(Status.SUCCESS);
+			// Restriction: debug phase must appear alone. Otherwise possible race condition
+			// if two times same session ID is used. XXX Needs investigation in all modules.
+			reply.setMsg("pong: debug received").setResult(pong).setStatus(msgStatus);
 			break;
 		}
 

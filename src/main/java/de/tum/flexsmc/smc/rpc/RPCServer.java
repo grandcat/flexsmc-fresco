@@ -118,12 +118,13 @@ public class RPCServer {
 		@Override
 		public void init(SessionCtx req, StreamObserver<CmdResult> responseObserver) {
 			// Initiate new session if session ID is not already in use.
-			if (sessions.containsKey(req.getSessionID())) {
+			String sessionID = req.getSessionID();
+			if (sessions.containsKey(sessionID)) {
+				l.warning("[" + sessionID + "] already exists!");
 				responseObserver.onNext(errorInvalidSession);
 				responseObserver.onCompleted();
 				return;
 			}
-			String sessionID = req.getSessionID();
 			// Setup Fresco and associate with session
 			BgwEngine engine = new BgwEngine();
 			sessions.put(sessionID, engine);
@@ -147,6 +148,7 @@ public class RPCServer {
 			if (eng == null) {
 				responseObserver.onNext(errorInvalidSession);
 				responseObserver.onCompleted();
+				l.warning("[" + sessionID + "] nextCmd: no session found!");
 				return;
 			}
 			
@@ -182,7 +184,7 @@ public class RPCServer {
 				l.fine("gracefulTearDown: successful");
 			
 			} else {
-				l.warning("gracefulTearDown: session not associated: " + sessionID);
+				l.fine("gracefulTearDown: session not associated with active engine: " + sessionID);
 			}
 		}
 		
