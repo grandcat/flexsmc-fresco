@@ -14,6 +14,7 @@ import de.tum.flexsmc.smc.rpc.SMCTask;
 import de.tum.flexsmc.smc.rpc.SessionPhase;
 import de.tum.flexsmc.smc.rpc.CmdResult.Status;
 import de.tum.flexsmc.smc.rpc.DebugPhase;
+import de.tum.flexsmc.smc.rpc.LinkingPhase;
 import de.tum.flexsmc.smc.rpc.SMCCmd.PayloadCase;
 
 /**
@@ -37,8 +38,10 @@ public abstract class EngineControl {
 		NOT_INITIALIZED(0),
 		PREPARE_START(1),
 		PREPARE_FINISH(2),
-		SESSION_START(3),
-		SESSION_FINSIH(4);
+		LINKING_START(3),
+		LINKING_FINSIH(4),
+		SESSION_START(5),
+		SESSION_FINSIH(6);
 		
 		private final int value;
 
@@ -52,11 +55,13 @@ public abstract class EngineControl {
 	 * contains the possible original phases it could have transitioned from.
 	 * Otherwise, the transition is illegal.
 	 */
-	private final JobPhase[][] allowedTransitions = {
+	static final JobPhase[][] allowedTransitions = {
 		{},	//< to: NOT_INITIALIZED, only set on start
-		{JobPhase.NOT_INITIALIZED, JobPhase.PREPARE_START, JobPhase.PREPARE_FINISH},	//< to: PREPARE_START
+		{JobPhase.NOT_INITIALIZED, JobPhase.PREPARE_START, JobPhase.PREPARE_FINISH},		//< to: PREPARE_START
 		{JobPhase.PREPARE_START},															//< to: PREPARE_FINISH
-		{JobPhase.PREPARE_FINISH},															//< to: SESSION_START
+		{JobPhase.PREPARE_FINISH},															//< to: LINKING_START
+		{JobPhase.LINKING_START},															//< to: LINKING_FINSIH
+		{JobPhase.PREPARE_FINISH, JobPhase.LINKING_FINSIH},									//< to: SESSION_START
 		{JobPhase.SESSION_START},															//< to: SESSION_FINSIH
 	};
 	
@@ -70,7 +75,7 @@ public abstract class EngineControl {
 		l.finer("Old state->" + this.phase + " new->" + newPhase);
 		JobPhase oldPhase = this.phase;
 		if (ArrayUtils.contains(allowedTransitions[newPhase.value], oldPhase)) {
-			// Valid transition, so apply.
+			// Valid transition. Activate new phase.
 			this.phase = newPhase;
 		
 		} else {
@@ -121,6 +126,19 @@ public abstract class EngineControl {
 		}
 			break;
 			
+		case LINK: {
+			validateSetPhase(JobPhase.LINKING_START);
+			l.fine("Linking phase");
+			
+			// In case of exception, just pass to caller function in stack.
+			// This generates an error message in RPCServer for the other side.
+			linkPeers();
+			reply.setMsg("linking done").setStatus(Status.SUCCESS);
+			
+			validateSetPhase(JobPhase.LINKING_FINSIH);
+			break;			
+		}
+			
 		case SESSION:
 			validateSetPhase(JobPhase.SESSION_START);
 			
@@ -160,6 +178,8 @@ public abstract class EngineControl {
 	}
 	
 	public abstract void prepare(int myId, List<PreparePhase.Participant> participants) throws RuntimeException, IOException;
+	
+	public abstract void linkPeers();
 	
 	public abstract SMCResult runSession();
 	

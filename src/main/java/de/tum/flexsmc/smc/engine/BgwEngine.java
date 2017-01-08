@@ -17,6 +17,7 @@ import de.tum.flexsmc.smc.rpc.CmdResult;
 import de.tum.flexsmc.smc.rpc.PreparePhase;
 import de.tum.flexsmc.smc.rpc.SMCResult;
 import de.tum.flexsmc.smc.utils.Env;
+import dk.alexandra.fresco.framework.MPCException;
 import dk.alexandra.fresco.framework.Party;
 import dk.alexandra.fresco.framework.ProtocolEvaluator;
 import dk.alexandra.fresco.framework.sce.SCE;
@@ -46,6 +47,7 @@ public class BgwEngine extends EngineControl {
 	private ProtocolSuiteConfiguration suiteConf;
 	private SCE smcEngine;
 
+	private AggregatorApplication frescoApp;
 
 	public BgwEngine() {
 	}
@@ -153,6 +155,7 @@ public class BgwEngine extends EngineControl {
 	 * 
 	 * @throws IOException
 	 */
+	@Override
 	public void prepare(int myId, List<PreparePhase.Participant> participants) throws RuntimeException, IOException {
 		verifyTaskRequirements();
 		l.finer("Task verification done");
@@ -171,9 +174,13 @@ public class BgwEngine extends EngineControl {
 		// Initialize all resources and network channels
 		// smcEngine.setup();
 	}
-
-	public SMCResult runSession() {
-		AggregatorApplication frescoApp;
+	
+	@Override
+	public void linkPeers() {
+		// Do last preparation for Fresco application.
+		// Normally, loading the application is part of the Session phase.
+		// Putting it here renders the Session phase minimal with respect to
+		// overhead. This allows more precise measurements.
 		switch (this.task.getAggregator()) {
 		case SUM:
 			frescoApp = new Sum(sceConf);
@@ -183,6 +190,22 @@ public class BgwEngine extends EngineControl {
 			// Should not reach this code. Normally checked in Prepare phase.
 			throw new SmcException("aggregator not supported", CmdResult.Status.ABORTED);
 		}
+		
+		// Connect all Fresco peers with each other.
+		try {
+			smcEngine.setup();
+		} catch (IOException e) {
+			throw new MPCException("Could not setup SMC peers: " + e.getMessage());
+		}
+	}
+
+	@Override
+	public SMCResult runSession() {
+		// Interconnect peers here if LinkingPhase was not executed before.
+		if (frescoApp == null) {
+			linkPeers();
+		}
+		// Run loaded application.
 		l.finer("Start: smcEngine.runApplication");
 		smcEngine.runApplication(frescoApp);
 		l.finer("Done: smcEngine.runApplication");
