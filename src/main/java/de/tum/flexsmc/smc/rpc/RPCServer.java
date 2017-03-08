@@ -1,7 +1,10 @@
 package de.tum.flexsmc.smc.rpc;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
@@ -14,11 +17,13 @@ import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
+import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.nio.NioServerSocketChannel;
 
 public class RPCServer {
 	private static final Logger l = Logger.getLogger(RPCServer.class.getName());
 
-	private SocketAddress listenerSocket = Utils.parseSocketAddress("unix:///tmp/grpc.sock");
+	private SocketAddress listenerSocket = new InetSocketAddress("localhost", 13131);
 	private Server server;
 
 	public RPCServer() {
@@ -26,33 +31,27 @@ public class RPCServer {
 	}
 
 	public void setCustomSocket(String socket) {
-		this.listenerSocket = Utils.parseSocketAddress(socket);
+		try {
+			URI tmpURI = new URI("my://" + socket);
+			this.listenerSocket = new InetSocketAddress(tmpURI.getHost(), tmpURI.getPort());
+
+		} catch (URISyntaxException e) {
+			e.printStackTrace();
+		}
 	}
 
 	public void start() throws IOException {
-		// this.server = ServerBuilder.forPort(port).addService(new
-		// SMCImpl()).build().start();
-		
-		// Unix socket properties (Linux only)
-		final EventLoopGroup boss;
-		final EventLoopGroup worker;
-		final Class<? extends ServerChannel> channelType;
-		try {
-	        Class<?> groupClass = Class.forName("io.netty.channel.epoll.EpollEventLoopGroup");
-	        @SuppressWarnings("unchecked")
-	        Class<? extends ServerChannel> channelClass = (Class<? extends ServerChannel>)
-	            Class.forName("io.netty.channel.epoll.EpollServerDomainSocketChannel");
-			boss = (EventLoopGroup) groupClass.getConstructor().newInstance();
-			worker = (EventLoopGroup) groupClass.getConstructor().newInstance();
-			channelType = channelClass;
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
-		
-		this.server = NettyServerBuilder.forAddress(listenerSocket).bossEventLoopGroup(boss)
-.workerEventLoopGroup(worker)
+		// Use standard NIO instead of epoll for ARM support
+		final EventLoopGroup boss = new NioEventLoopGroup();
+		final EventLoopGroup worker = new NioEventLoopGroup();
+		final Class<? extends ServerChannel> channelType = NioServerSocketChannel.class;
+
+		this.server = NettyServerBuilder.forAddress(listenerSocket)
+				.bossEventLoopGroup(boss)
+				.workerEventLoopGroup(worker)
 				.channelType(channelType)
-				.addService(ServerInterceptors.intercept(new SMCImpl(), new SessionInterceptor())).build().start();
+				.addService(ServerInterceptors.intercept(new SMCImpl(), new SessionInterceptor()))
+				.build().start();
 		l.info("RPC server started, listening on socket " + listenerSocket.toString());
 		Runtime.getRuntime().addShutdownHook(new Thread() {
 			@Override
